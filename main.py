@@ -148,7 +148,10 @@ def motor_control(vector_queue):
 
     shoot_sw.shoot()
 
-
+    while 1:
+        if vector_queue.empty() == False:
+            print(vector_queue.get(0))
+        
 ######################################
 ## 위에는 모터 제어 쓰레드 아래는 비전 ##
 ######################################
@@ -179,7 +182,7 @@ def drawAxis(img, corners, imgpts):
 
 
 
-def find_aruco_id(img, marker_type=4, total_markers=50, draw=True):
+def find_aruco_id(img, vector_queue, marker_type=4, total_markers=50, draw=True):
     real_marker_size = 50
     marker_3d_edges = np.array([    [0.,0.,0.],
                                     [0.,real_marker_size,0.],
@@ -215,53 +218,21 @@ def find_aruco_id(img, marker_type=4, total_markers=50, draw=True):
         if ret:
             corner = np.array(corner).reshape((4, 2))
             (topLeft, topRight, bottomRight, bottomLeft) = corner
-            # print('tvec = ', tvec)
-            # print('rvec = ', rvec)
             x=round(tvec[0][0]+real_marker_size/2,2)
             y=round(tvec[1][0]+real_marker_size/2,2)
             z=round(tvec[2][0],2)
 
             rmat = cv.Rodrigues(rvec)[0]
-            
-
-            # version1
-            # rx = math.atan2(rmat[2][1], rmat[2][2])
-            # ry = math.atan2(-rmat[2][0], math.sqrt(rmat[2][1]**2+rmat[2][2]**2))
-            # rz = math.atan2(rmat[1][0], rmat[0][0])
 
             #version2 matrix transpose
             rx = math.atan2(rmat[1][2], rmat[2][2])
             ry = math.atan2(-rmat[0][2], math.sqrt(rmat[1][2]**2+rmat[2][2]**2))
             rz = math.atan2(rmat[0][1], rmat[0][0]) - math.pi/2
 
-            #version3 well
-            # sy = math.sqrt(rmat[0][0]**2 + rmat[1][0]**2)
-            # singular = sy < 1e-6
-            # if not singular:
-            #    rx = math.atan2(rmat[2][1],rmat[2][2])
-            #    ry = math.atan2(-rmat[2][0], sy)
-            #    rz = math.atan2(rmat[1][0], rmat[0][0])
-            # else:
-            #    rx = math.atan2(-rmat[1][2], rmat[1][1])
-            #    ry = math.atan2(-rmat[2][0],sy)
-            #    rz = 0
-               
-        
             rx=round(-(((np.rad2deg(rx)+360)%360)-180),2)
             ry=round(np.rad2deg(ry),2)
             rz=round(np.rad2deg(rz),2)
-            # print(np.rad2deg(rvec[0][0]))
             
-            #rvec.astype(float)    
-            # theta = math.sqrt((rvec[0][0])**2+(rvec[1][0])**2+(rvec[2][0])**2)
-            # rx = rvec[0][0]/theta
-            # ry = rvec[1][0]/theta
-            # rz = rvec[2][0]/theta
-            # rx=round(np.rad2deg(rvec[0][0]/theta),2)
-            # ry=round(np.rad2deg(rvec[1][0]/theta),2)
-            # rz=round(np.rad2deg(rvec[2][0]/theta),2)
-            # print('rx, ry, rz = ', rx, ry, rz)
-            # PnP 결과를 이미지에 그려 확
             text1 = f"{x},{y},{z}"
             text2 = f"{rx},{ry},{rz}"
             cv.putText(img, text1, (centerofmarker[0]-40,   centerofmarker[1]+20), cv.FONT_HERSHEY_PLAIN, 1.0, (0, 0, 255))
@@ -270,8 +241,11 @@ def find_aruco_id(img, marker_type=4, total_markers=50, draw=True):
             img_shape = img.shape
             centerofImg = (int(img_shape[1]/2), int(img_shape[0]/2))
             end_point = (int(centerofmarker[0]), int(centerofmarker[1]))
-            if abs(x) > 5 or abs(y) > 5:
+            arrow_x = end_point[0] - centerofImg[0] 
+            arrow_y = end_point[1] - centerofImg[1]
+            if abs(arrow_x) > 5 and abs(arrow_y) > 5:
                cv.arrowedLine(img, centerofImg, end_point, green_BGR, 5)
+               vector_queue.put((end_point[0] - centerofImg[0],end_point[1] - centerofImg[1]))
             
             imgpts, jac = cv.projectPoints(axis, rvec, tvec, mat_Intrin, mat_distortion)
         
@@ -284,13 +258,7 @@ def find_aruco_id(img, marker_type=4, total_markers=50, draw=True):
 
             cv.line(img, topLeftPoint, (c1,c2), red_BGR, 2)
             cv.line(img, topLeftPoint, (a1,a2), blue_BGR, 2)
-            cv.line(img, topLeftPoint, (b1,b2), green_BGR, 2)
-            
-
-            # print('Blue axis(y) = ',a1-topLeftPoint[0] , a2-topLeftPoint[1])
-            # print('Green axis(x) = ',b1-topLeftPoint[0] , b2-topLeftPoint[1])
-            # print('Red axis(z) = ',c1-topLeftPoint[0] , c2-topLeftPoint[1])
-        
+            cv.line(img, topLeftPoint, (b1,b2), green_BGR, 2)  
 
     return ids
 def detect_marker_process(vector_queue):
@@ -310,7 +278,7 @@ def detect_marker_process(vector_queue):
 
         fps = cap.get(cv.CAP_PROP_FPS)
 
-        id = find_aruco_id(frame)
+        id = find_aruco_id(frame, vector_queue)
         #print(id)
         #cv.putText(frame, "fps : %0.1f" %fps, (100, 100), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0))
         #cv.putText(frame, "fps : %0.1f" %fps_2, (100, 100), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0))
@@ -339,7 +307,7 @@ if __name__=='__main__':
     motor_process.start()
 
 
-
+    vector_queue.close()
     vision_process.join()
     motor_process.join()
 
