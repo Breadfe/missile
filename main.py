@@ -157,6 +157,8 @@ def motor_control(vector_queue):
         if vector_queue.empty() == False:
             print(vector_queue.get(0))
             #TODO get은 현실에서의 xyz 값 출력하니까 이거 이용해서 body랑 gun 각도 atna2 이용해서 회전시키기.
+
+
 ######################################
 ## 위에는 모터 제어 쓰레드 아래는 비전 ##
 ######################################
@@ -175,7 +177,7 @@ red_BGR = (0, 0, 255)
 green_BGR = (0, 255, 0)
 
 
-axis = np.float32([[10,0,0], [0,10,0], [0,0,-10]]).reshape(-1,3)
+axis = np.float32([[10,0,0], [0,10,0], [0,0,-10]]).reshape(-1,3) # 마커에서 보이는 xyz축의 길이
 #Video
 def drawAxis(img, corners, imgpts):
    corner = tuple(corners[0].ravel())
@@ -251,7 +253,7 @@ def find_aruco_id(img, vector_queue, marker_type=4, total_markers=50, draw=True)
             # if abs(arrow_x) > 5 and abs(arrow_y) > 5: # 이미지 상에서의 차이
             #    cv.arrowedLine(img, centerofImg, end_point, green_BGR, 5)
             #    vector_queue.put((end_point[0] - centerofImg[0],end_point[1] - centerofImg[1]))
-            if abs(x) > 5 and abs(y) > 5: # 이미지 상에서의 차이
+            if abs(x) > 5 and abs(y) > 5: # 실제 물체의 좌표 : 이미지센서가 0,0,0
                cv.arrowedLine(img, centerofImg, end_point, green_BGR, 5)
                vector_queue.put((x,y,z))
             
