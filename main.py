@@ -68,10 +68,10 @@ DXL_MOVING_STATUS_THRESHOLD = 20
 JOINT_TYPE = 0
 WHEEL_TYPE = 1
 
-BODY_JOINT_MIN_POS_VALUE = 204
-BODY_JOINT_MAX_POS_VALUE = 820
+BODY_JOINT_MIN_POS_VALUE = 204 # body id 0
+BODY_JOINT_MAX_POS_VALUE = 820 
 
-GUN_JOINT_MIN_POS_VALUE = 500
+GUN_JOINT_MIN_POS_VALUE = 500 # gun id 3
 GUN_JOINT_MAX_POS_VALUE = 600
 
 
@@ -111,15 +111,34 @@ def motor_control(vector_queue):
         def __init__(self, id, rotate_type):
             self.id = id
             self.rotate_type = rotate_type
+            if id == 0:
+                self.max_pos_val = BODY_JOINT_MAX_POS_VALUE
+                self.min_pos_val = BODY_JOINT_MIN_POS_VALUE
+            elif id == 3:
+                self.max_pos_val = GUN_JOINT_MAX_POS_VALUE
+                self.min_pos_val = GUN_JOINT_MIN_POS_VALUE
+            else:
+                self.max_pos_val = 1023
+                self.min_pos_val = 0
 
         def set_position(self, deg):
             rad = deg * math.pi/180
             value = rad * 512 / math.pi
+
+            if value > self.max_pos_val:
+                value = self.max_pos_val
+            elif value < self.min_pos_val:
+                value = self.min_pos_val
+
             dxl_comm_result, dxl_error = packetHandler.write4ByteTxRx(portHandler, self.id, ADDR_RX_GOAL_POSITION, int(value))
             if dxl_comm_result != COMM_SUCCESS:
                 print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
             elif dxl_error != 0:
                 print("%s" % packetHandler.getRxPacketError(dxl_error))
+        
+        def get_position(self):
+            position = packetHandler.read4ByteTxRx(portHandler, self.id, ADDR_RX_PRESENT_POSITION)
+            return position[0]*360/1023
 
         def torque_on(self):
             dxl_comm_result, dxl_error = packetHandler.write1ByteTxRx(portHandler, self.id, ADDR_RX_TORQUE_ENABLE, TORQUE_ENABLE)
@@ -155,9 +174,14 @@ def motor_control(vector_queue):
 
     while 1:
         if vector_queue.empty() == False:
-            print(vector_queue.get(0))
+            x, y, z = vector_queue.get(0)
+            #print(vector_queue.get(0))
+            print(x, y, z)
             #TODO get은 현실에서의 xyz 값 출력하니까 이거 이용해서 body랑 gun 각도 atna2 이용해서 회전시키기.
-
+            print('now pos body : ', body_joint.get_position(), end=" ")
+            print('atna2 : ', math.atan2(x,z))
+            body_joint.set_position(body_joint.get_position()q + math.atan2(x, z)*180/math.pi)
+            gun_joint.set_position(gun_joint.get_position() + math.atan2(-y,z))
 
 ######################################
 ## 위에는 모터 제어 쓰레드 아래는 비전 ##
