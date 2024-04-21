@@ -156,7 +156,7 @@ def motor_control(vector_queue):
     while 1:
         if vector_queue.empty() == False:
             print(vector_queue.get(0))
-        
+            #TODO get은 현실에서의 xyz 값 출력하니까 이거 이용해서 body랑 gun 각도 atna2 이용해서 회전시키기.
 ######################################
 ## 위에는 모터 제어 쓰레드 아래는 비전 ##
 ######################################
@@ -223,7 +223,7 @@ def find_aruco_id(img, vector_queue, marker_type=4, total_markers=50, draw=True)
         if ret:
             corner = np.array(corner).reshape((4, 2))
             (topLeft, topRight, bottomRight, bottomLeft) = corner
-            x=round(tvec[0][0]+real_marker_size/2,2)
+            x=round(tvec[0][0]+real_marker_size/2,2) # 실제 거리 mm 에서 카메라 중심과에서 x축
             y=round(tvec[1][0]+real_marker_size/2,2)
             z=round(tvec[2][0],2)
 
@@ -246,11 +246,14 @@ def find_aruco_id(img, vector_queue, marker_type=4, total_markers=50, draw=True)
             img_shape = img.shape
             centerofImg = (int(img_shape[1]/2), int(img_shape[0]/2))
             end_point = (int(centerofmarker[0]), int(centerofmarker[1]))
-            arrow_x = end_point[0] - centerofImg[0] 
+            arrow_x = end_point[0] - centerofImg[0]
             arrow_y = end_point[1] - centerofImg[1]
-            if abs(arrow_x) > 5 and abs(arrow_y) > 5:
+            # if abs(arrow_x) > 5 and abs(arrow_y) > 5: # 이미지 상에서의 차이
+            #    cv.arrowedLine(img, centerofImg, end_point, green_BGR, 5)
+            #    vector_queue.put((end_point[0] - centerofImg[0],end_point[1] - centerofImg[1]))
+            if abs(x) > 5 and abs(y) > 5: # 이미지 상에서의 차이
                cv.arrowedLine(img, centerofImg, end_point, green_BGR, 5)
-               vector_queue.put((end_point[0] - centerofImg[0],end_point[1] - centerofImg[1]))
+               vector_queue.put((x,y,z))
             
             imgpts, jac = cv.projectPoints(axis, rvec, tvec, mat_Intrin, mat_distortion)
         
