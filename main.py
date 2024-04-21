@@ -54,7 +54,7 @@ CAMERA_ID = 1
 SHOOT_ID = 2
 GUN_ID = 3
 
-BAUDRATE                    = 57600             # Dynamixel default baudrate : 57600
+BAUDRATE                    = 1000000             # Dynamixel default baudrate : 57600
 DEVICENAME                  = 'COM10'
 #DEVICENAME                  = '/dev/ttyUSB0'
 
@@ -135,6 +135,7 @@ def motor_control(vector_queue):
                 print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
             elif dxl_error != 0:
                 print("%s" % packetHandler.getRxPacketError(dxl_error))
+            
         
         def get_position(self):
             position = packetHandler.read4ByteTxRx(portHandler, self.id, ADDR_RX_PRESENT_POSITION)
@@ -171,17 +172,42 @@ def motor_control(vector_queue):
     shoot_sw = motor(SHOOT_ID, WHEEL_TYPE)
 
     shoot_sw.shoot()
-
+    body_pose_before = 0
+    gun_pose_before = 0
+    ttt = time.time()
     while 1:
         if vector_queue.empty() == False:
+            # q_len = vector_queue.qsize()
+            # while q_len > 1:
+            #     t = vector_queue.get(0)
+            #     q_len = q_len-1
             x, y, z = vector_queue.get(0)
-            #print(vector_queue.get(0))
-            print(x, y, z)
+            # print(vector_queue.empty())
+            body_pose = body_joint.get_position()
+            gun_pose = gun_joint.get_position()
+            if body_pose < 360:
+                body_pose_before = body_pose
+            else:
+                body_pose = body_pose_before
+            if gun_pose < 360:
+                gun_pose_before = gun_pose
+            else:
+                gun_pose = gun_pose_before
+            
+        
+            # print(x, y, z)
             #TODO get은 현실에서의 xyz 값 출력하니까 이거 이용해서 body랑 gun 각도 atna2 이용해서 회전시키기.
-            print('now pos body : ', body_joint.get_position(), end=" ")
-            print('atna2 : ', math.atan2(x,z))
-            body_joint.set_position(body_joint.get_position()q + math.atan2(x, z)*180/math.pi)
-            gun_joint.set_position(gun_joint.get_position() + math.atan2(-y,z))
+            # print('now pos body : ', body_pose, end=" ")
+            # print('atna2 : ', math.atan2(x,z))
+            # body_joint.set_position(body_pose + math.atan2(x, z)*180/math.pi)
+            # gun_joint.set_position(gun_pose + math.atan2(-y,z)*180/math.pi)
+            
+            body_joint.set_position(body_pose + 3*x*z/abs(x*z))
+            gun_joint.set_position(gun_pose + -3*y*z/abs(y*z))
+            print(1/(time.time()-ttt))
+            ttt = time.time()
+        else:
+            print('#################################empty####################33')
 
 ######################################
 ## 위에는 모터 제어 쓰레드 아래는 비전 ##
@@ -277,9 +303,10 @@ def find_aruco_id(img, vector_queue, marker_type=4, total_markers=50, draw=True)
             # if abs(arrow_x) > 5 and abs(arrow_y) > 5: # 이미지 상에서의 차이
             #    cv.arrowedLine(img, centerofImg, end_point, green_BGR, 5)
             #    vector_queue.put((end_point[0] - centerofImg[0],end_point[1] - centerofImg[1]))
-            if abs(x) > 5 and abs(y) > 5: # 실제 물체의 좌표 : 이미지센서가 0,0,0
-               cv.arrowedLine(img, centerofImg, end_point, green_BGR, 5)
-               vector_queue.put((x,y,z))
+            if abs(x) > 3 and abs(y) > 3: # 실제 물체의 좌표 : 이미지센서가 0,0,0
+                cv.arrowedLine(img, centerofImg, end_point, green_BGR, 5)
+                if vector_queue.qsize() <3:
+                    vector_queue.put((x,y,z))
             
             imgpts, jac = cv.projectPoints(axis, rvec, tvec, mat_Intrin, mat_distortion)
         
