@@ -130,7 +130,7 @@ def motor_control(vector_queue):
             elif value < self.min_pos_val:
                 value = self.min_pos_val
 
-            dxl_comm_result, dxl_error = packetHandler.write4ByteTxRx(portHandler, self.id, ADDR_RX_GOAL_POSITION, int(value))
+            dxl_comm_result, dxl_error = packetHandler.write2ByteTxRx(portHandler, self.id, ADDR_RX_GOAL_POSITION, int(value))
             if dxl_comm_result != COMM_SUCCESS:
                 print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
             elif dxl_error != 0:
@@ -138,8 +138,8 @@ def motor_control(vector_queue):
             
         
         def get_position(self):
-            position = packetHandler.read4ByteTxRx(portHandler, self.id, ADDR_RX_PRESENT_POSITION)
-            return position[0]*360/1023
+            position = packetHandler.read2ByteTxRx(portHandler, self.id, ADDR_RX_PRESENT_POSITION)
+            return (position[0])*360/1023
 
         def torque_on(self):
             dxl_comm_result, dxl_error = packetHandler.write1ByteTxRx(portHandler, self.id, ADDR_RX_TORQUE_ENABLE, TORQUE_ENABLE)
@@ -188,11 +188,16 @@ def motor_control(vector_queue):
             if body_pose < 360:
                 body_pose_before = body_pose
             else:
+                print('body over : ', body_pose%360, end=' ')
+                print('body error = ', (body_pose%360) - body_pose_before)
                 body_pose = body_pose_before
+                
             if gun_pose < 360:
                 gun_pose_before = gun_pose
             else:
+                print('gun over : ', gun_pose)
                 gun_pose = gun_pose_before
+                
             
         
             # print(x, y, z)
@@ -204,10 +209,10 @@ def motor_control(vector_queue):
             
             body_joint.set_position(body_pose + 3*x*z/abs(x*z))
             gun_joint.set_position(gun_pose + -3*y*z/abs(y*z))
-            print(1/(time.time()-ttt))
+            # print(1/(time.time()-ttt))
             ttt = time.time()
-        else:
-            print('#################################empty####################33')
+        # else:
+            # print('#################################empty####################33')
 
 ######################################
 ## 위에는 모터 제어 쓰레드 아래는 비전 ##
